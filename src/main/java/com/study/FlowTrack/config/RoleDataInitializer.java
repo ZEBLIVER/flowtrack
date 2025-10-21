@@ -6,8 +6,6 @@ import com.study.FlowTrack.repository.RoleRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-
 @Component
 public class RoleDataInitializer implements CommandLineRunner {
     private final RoleRepository roleRepository;
