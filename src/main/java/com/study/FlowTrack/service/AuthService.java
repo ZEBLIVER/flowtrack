@@ -9,20 +9,20 @@ import com.study.FlowTrack.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService implements UserDetailsService {
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
 
     private AuthService(UserRepository userRepository,
-                        BCryptPasswordEncoder bCryptPasswordEncoder,
+                        PasswordEncoder passwordEncoder,
                         RoleRepository roleRepository) {
         this.userRepository = userRepository;
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+        this.passwordEncoder = passwordEncoder;
         this.roleRepository = roleRepository;
     }
 
@@ -33,7 +33,7 @@ public class AuthService implements UserDetailsService {
         }
 
         String rawPassword = user.getPassword();
-        String encryptedPassword = bCryptPasswordEncoder.encode(rawPassword);
+        String encryptedPassword = passwordEncoder.encode(rawPassword);
 
         user.setPassword(encryptedPassword);
 
