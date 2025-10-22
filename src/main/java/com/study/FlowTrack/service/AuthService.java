@@ -1,10 +1,11 @@
 package com.study.FlowTrack.service;
 
-import com.study.FlowTrack.enums.UserRole;
+import com.study.FlowTrack.enums.SystemRole;
 import com.study.FlowTrack.exception.DuplicateResourceException;
-import com.study.FlowTrack.model.Role;
+import com.study.FlowTrack.exception.InitialRoleNotFoundException;
+import com.study.FlowTrack.model.SystemRoleEntity;
 import com.study.FlowTrack.model.User;
-import com.study.FlowTrack.repository.RoleRepository;
+import com.study.FlowTrack.repository.SystemRoleRepository;
 import com.study.FlowTrack.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -16,14 +17,14 @@ import org.springframework.stereotype.Service;
 public class AuthService implements UserDetailsService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final RoleRepository roleRepository;
+    private final SystemRoleRepository systemRoleRepository;
 
     private AuthService(UserRepository userRepository,
                         PasswordEncoder passwordEncoder,
-                        RoleRepository roleRepository) {
+                        SystemRoleRepository systemRoleRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.roleRepository = roleRepository;
+        this.systemRoleRepository = systemRoleRepository;
     }
 
     public User registerUser(User user) {
@@ -37,10 +38,11 @@ public class AuthService implements UserDetailsService {
 
         user.setPassword(encryptedPassword);
 
-        Role viewerRole = roleRepository.findByName(UserRole.ROLE_VIEWER)
-                .orElseThrow(() -> new RuntimeException("Initial role ROLE_VIEWER not found. Database seeding failed."));
+        SystemRoleEntity managerSystemRole = systemRoleRepository.findByName(SystemRole.ROLE_MANAGER)
+                .orElseThrow(() -> new InitialRoleNotFoundException
+                        ("Initial role ROLE_MANAGER not found. Database seeding failed."));
 
-        user.getRoles().add(viewerRole);
+        user.getSystemRoles().add(managerSystemRole);
         return userRepository.save(user);
     }
 
