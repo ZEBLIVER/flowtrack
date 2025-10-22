@@ -1,6 +1,6 @@
 package com.study.FlowTrack.model;
 
-import com.study.FlowTrack.enums.UserRole;
+import com.study.FlowTrack.enums.SystemRole;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,7 +14,7 @@ import java.util.Set;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Role {
+public class SystemRoleEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "role_id",updatable = false,nullable = false)
@@ -22,12 +22,12 @@ public class Role {
 
     @Column(nullable = false, unique = true)
     @Enumerated(EnumType.STRING)
-    private UserRole name;
+    private SystemRole name;
 
     @ManyToMany(mappedBy = "roles")
     private Set<User> users = new HashSet<>();
 
-    public Role(UserRole roleName) {
+    public SystemRoleEntity(SystemRole roleName) {
         this.name = roleName;
     }
 }

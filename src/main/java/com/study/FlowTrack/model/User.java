@@ -40,18 +40,10 @@ public class User implements UserDetails {
     @Column(name = "is_account_non_locked", nullable = false)
     private boolean isAccountNonLocked = true;
 
-    @ManyToMany
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<Role> roles = new HashSet<>();
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return this.roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName().name()))
+        return this.systemRoles.stream()
+                .map(systemRole -> new SimpleGrantedAuthority(systemRole.getName().name()))
                 .collect(Collectors.toSet());
     }
 
@@ -79,4 +71,26 @@ public class User implements UserDetails {
     public boolean isEnabled() {
         return isEnable;
     }
+
+    @ManyToMany
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<SystemRoleEntity> systemRoles = new HashSet<>();
+
+    @OneToMany(mappedBy = "creator")
+    private Set<Task> createdTasks = new HashSet<>();
+
+    @OneToMany(mappedBy = "assignedUser")
+    private Set<Task> assignedTasks = new HashSet<>();
+
+    @OneToMany(mappedBy = "creator")
+    private Set<Project> createdProjects = new HashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ProjectMembership> userMemberships = new HashSet<>();
+
+
 }
