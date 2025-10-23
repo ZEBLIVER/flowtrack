@@ -2,9 +2,7 @@ package com.study.FlowTrack.model;
 
 import com.study.FlowTrack.enums.ProjectRole;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Entity
 @Getter
@@ -14,17 +12,19 @@ import lombok.Setter;
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"user_id", "project_id"})
         })
+@EqualsAndHashCode(of = {"user", "project"})
+@ToString(exclude = {"user", "project"})
 public class ProjectMembership {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(nullable = false,unique = true)
+    @Column(name = "membership_id")
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 

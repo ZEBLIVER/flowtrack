@@ -2,9 +2,7 @@ package com.study.FlowTrack.model;
 
 import com.study.FlowTrack.enums.StatusTask;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -15,36 +13,40 @@ import java.util.Set;
 @Getter
 @Setter
 @NoArgsConstructor
+@EqualsAndHashCode(of = "id")
 @Table(name = "tasks")
+@ToString(exclude = {"comments", "statusTaskEntity", "creator", "assignedUser", "project"})
 public class Task {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "task_id",nullable = false,unique = true)
+    @Column(name = "task_id")
     private Long id;
 
     @CreationTimestamp
     @Column(name = "creation_Time",nullable = false)
     private LocalDateTime creationTime;
 
+    @Column(nullable = false)
     private String title;
+
     private String description;
 
     @OneToMany(mappedBy = "task",cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Comment> comments = new HashSet<>();
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "status_task_id",nullable = false)
     private StatusTaskEntity statusTaskEntity;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_user_id",nullable = false)
     private User creator;
 
-    @ManyToOne
-    @JoinColumn(name = "assigned_user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_user_id")
     private User assignedUser;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id",nullable = false)
     private Project project;
 

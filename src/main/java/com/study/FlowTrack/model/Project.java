@@ -1,9 +1,7 @@
 package com.study.FlowTrack.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -12,10 +10,12 @@ import java.util.Set;
 @Getter
 @Setter
 @NoArgsConstructor
+@EqualsAndHashCode(of = "key")
+@ToString(exclude = {"tasks", "memberships", "creator"})
 public class Project {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "project_id",nullable = false,unique = true)
+    @Column(name = "project_id")
     private Long id;
 
     @Column(name = "project_name",nullable = false)
@@ -32,9 +32,9 @@ public class Project {
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ProjectMembership> memberships = new HashSet<>();
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_user_id", nullable = false)
-    public User creator;
+    private User creator;
 
 
 }

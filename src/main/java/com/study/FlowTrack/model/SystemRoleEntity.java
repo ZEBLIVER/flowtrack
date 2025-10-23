@@ -2,9 +2,7 @@ package com.study.FlowTrack.model;
 
 import com.study.FlowTrack.enums.SystemRole;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -14,10 +12,12 @@ import java.util.Set;
 @Getter
 @Setter
 @NoArgsConstructor
+@EqualsAndHashCode(of = "systemRoleName")
+@ToString(exclude = "users")
 public class SystemRoleEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "role_id",updatable = false,nullable = false)
+    @Column(name = "role_id")
     private Long id;
 
     @Column(nullable = false, unique = true)

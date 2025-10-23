@@ -18,10 +18,12 @@ import java.util.stream.Collectors;
 @Setter
 @NoArgsConstructor
 @Table(name = "users")
+@ToString(exclude = {"systemRoles", "createdTasks",
+        "assignedTasks", "createdProjects", "userMemberships", "authoredComments", "password"})
 public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id", updatable = false, nullable = false)
+    @Column(name = "user_id")
     private Long id;
 
     @Column(name = "user_name",unique = true,nullable = false)
@@ -43,7 +45,7 @@ public class User implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return this.systemRoles.stream()
-                .map(systemRole -> new SimpleGrantedAuthority(systemRole.getName().name()))
+                .map(systemRole -> new SimpleGrantedAuthority(systemRole.getSystemRoleName().name()))
                 .collect(Collectors.toSet());
     }
 
@@ -92,5 +94,7 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ProjectMembership> userMemberships = new HashSet<>();
 
+    @OneToMany(mappedBy = "author")
+    private Set<Comment> authoredComments = new HashSet<>();
 
 }
