@@ -8,6 +8,8 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -26,6 +28,9 @@ public class Task {
 
     private String title;
     private String description;
+
+    @OneToMany(mappedBy = "task",cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Comment> comments = new HashSet<>();
 
     @ManyToOne
     @JoinColumn(name = "status_task_id",nullable = false)
