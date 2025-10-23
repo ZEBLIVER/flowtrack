@@ -1,6 +1,6 @@
 package com.study.FlowTrack.model;
 
-import com.study.FlowTrack.enums.TaskStatus;
+import com.study.FlowTrack.enums.StatusTask;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,7 +26,10 @@ public class Task {
 
     private String title;
     private String description;
-    private TaskStatus taskStatus;
+
+    @ManyToOne
+    @JoinColumn(name = "status_task_id",nullable = false)
+    private StatusTaskEntity statusTaskEntity;
 
     @ManyToOne
     @JoinColumn(name = "creator_user_id",nullable = false)
