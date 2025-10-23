@@ -38,7 +38,7 @@ public class AuthService implements UserDetailsService {
 
         user.setPassword(encryptedPassword);
 
-        SystemRoleEntity managerSystemRole = systemRoleRepository.findByName(SystemRole.ROLE_MANAGER)
+        SystemRoleEntity managerSystemRole = systemRoleRepository.findBySystemRoleName(SystemRole.ROLE_MANAGER)
                 .orElseThrow(() -> new InitialRoleNotFoundException
                         ("Initial role ROLE_MANAGER not found. Database seeding failed."));
 

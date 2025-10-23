@@ -22,12 +22,12 @@ public class SystemRoleEntity {
 
     @Column(nullable = false, unique = true)
     @Enumerated(EnumType.STRING)
-    private SystemRole name;
+    private SystemRole systemRoleName;
 
     @ManyToMany(mappedBy = "roles")
     private Set<User> users = new HashSet<>();
 
     public SystemRoleEntity(SystemRole roleName) {
-        this.name = roleName;
+        this.systemRoleName = roleName;
     }
 }

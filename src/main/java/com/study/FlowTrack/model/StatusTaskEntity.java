@@ -26,4 +26,8 @@ public class StatusTaskEntity {
 
     @OneToMany(mappedBy = "statusTaskEntity")
     private Set<Task> tasks = new HashSet<>();
+
+    public StatusTaskEntity(StatusTask statusTask) {
+        this.statusTask = statusTask;
+    }
 }
