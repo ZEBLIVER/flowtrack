@@ -1,4 +1,4 @@
-package com.study.FlowTrack.payload;
+package com.study.FlowTrack.payload.auth;
 
 import lombok.Data;
 

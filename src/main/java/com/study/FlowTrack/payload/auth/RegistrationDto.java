@@ -1,11 +1,11 @@
-package com.study.FlowTrack.payload;
+package com.study.FlowTrack.payload.auth;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class LoginDto {
+public class RegistrationDto {
     private String username;
     private String password;
 }
