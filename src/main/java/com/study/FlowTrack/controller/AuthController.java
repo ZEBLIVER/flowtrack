@@ -2,10 +2,11 @@ package com.study.FlowTrack.controller;
 
 import com.study.FlowTrack.config.security.jwt.JwtTokenProvider;
 import com.study.FlowTrack.model.User;
-import com.study.FlowTrack.payload.AuthResponseDto;
-import com.study.FlowTrack.payload.LoginDto;
-import com.study.FlowTrack.payload.RegistrationDto;
+import com.study.FlowTrack.payload.auth.AuthResponseDto;
+import com.study.FlowTrack.payload.auth.LoginDto;
+import com.study.FlowTrack.payload.auth.RegistrationDto;
 import com.study.FlowTrack.service.AuthService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
     private final JwtTokenProvider jwtTokenProvider;
@@ -25,13 +27,6 @@ public class AuthController {
     @GetMapping({"", "/"})
     public ResponseEntity<String> authRoot() {
         return new ResponseEntity<>("Auth API is ready. Use /register or /login with POST method.", HttpStatus.OK);
-    }
-
-    @Autowired
-    public AuthController(AuthService authService, JwtTokenProvider jwtTokenProvider, AuthenticationManager authenticationManager) {
-        this.authService = authService;
-        this.jwtTokenProvider = jwtTokenProvider;
-        this.authenticationManager = authenticationManager;
     }
 
     @PostMapping("/register")
