@@ -2,7 +2,9 @@ package com.study.FlowTrack.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -25,6 +27,9 @@ public class Project {
     private String key;
     private String description;
 
+    @CreationTimestamp
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "project")
     private Set<Task> tasks = new HashSet<>();
