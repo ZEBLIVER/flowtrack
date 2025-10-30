@@ -23,7 +23,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,27 +55,17 @@ public class ProjectService {
         return projectMapper.toResponseDto(savedProject);
     }
 
-    public void deleteProject(User user, Long id) {
+    public void deleteProject(User requester, Long id) {
         Project project = getProjectEntityById(id);
-        Optional<ProjectMembership> optionalMembership = projectMembershipRepository.findByUserAndProject(user, project);
-        if (optionalMembership.isEmpty()) throw new PermissionDeniedException("Access denied");
-        ProjectMembership projectMembership = optionalMembership.get();
-        if (!projectMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN)) {
-            throw new PermissionDeniedException("Access denied: Must be Project Admin.");
-        }
+        ProjectMembership requesterMembership = requireUserMembership(requester, project);
+        requireProjectAdmin(requesterMembership);
         projectRepository.deleteById(id);
     }
 
-    public void addUserToProject(User user, Long userIdToAdd, Long projectId, ProjectRole projectRole) {
+    public void addUserToProject(User requester, Long userIdToAdd, Long projectId, ProjectRole projectRole) {
         Project project = getProjectEntityById(projectId);
-        Optional<ProjectMembership> optionalMembership = projectMembershipRepository.findByUserAndProject(user, project);
-        if (optionalMembership.isEmpty()) {
-            throw new PermissionDeniedException("Access denied: Must be a participant in the project ");
-        }
-        ProjectMembership projectMembership = optionalMembership.get();
-        if (!projectMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN)) {
-            throw new PermissionDeniedException("Access denied: Must be Project Admin.");
-        }
+        ProjectMembership requesterMembership = requireUserMembership(requester, project);
+        requireProjectAdmin(requesterMembership);
         User userToAddOptional = userRepository.findById(userIdToAdd).orElseThrow(
                 () -> new ResourceNotFoundException("User not found")
         );
@@ -91,16 +80,10 @@ public class ProjectService {
         projectMembershipRepository.save(newMembership);
     }
 
-    public void deleteUserFromProject(User user, Long userIdToDelete, Long projectId) {
+    public void deleteUserFromProject(User requester, Long userIdToDelete, Long projectId) {
         Project project = getProjectEntityById(projectId);
-        Optional<ProjectMembership> optionalMembership = projectMembershipRepository.findByUserAndProject(user, project);
-        if (optionalMembership.isEmpty()) {
-            throw new PermissionDeniedException("Access denied: Must be a participant in the project ");
-        }
-        ProjectMembership projectMembership = optionalMembership.get();
-        if (!projectMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN)) {
-            throw new PermissionDeniedException("Access denied: Must be Project Admin.");
-        }
+        ProjectMembership requesterMembership = requireUserMembership(requester, project);
+        requireProjectAdmin(requesterMembership);
         User userToDelete = userRepository.findById(userIdToDelete).orElseThrow(
                 () -> new ResourceNotFoundException("User not found")
         );
@@ -112,10 +95,9 @@ public class ProjectService {
 
     }
 
-    public ProjectResponseDto getProjectById(User user, Long id) {
+    public ProjectResponseDto getProjectById(User requester, Long id) {
         Project project = getProjectEntityById(id);
-        Optional<ProjectMembership> membership = projectMembershipRepository.findByUserAndProject(user, project);
-        if (membership.isEmpty()) throw new PermissionDeniedException("Access denied");
+        requireUserMembership(requester, project);
         return projectMapper.toResponseDto(project);
     }
 
@@ -129,40 +111,35 @@ public class ProjectService {
         return projectMapper.toResponseDtoList(projects);
     }
 
-    public void setUserRolesInProject(User user, Long userIdToUpdate, Long projectId, ProjectRole role) {
+    public void setUserRolesInProject(User requester, Long userIdToUpdate, Long projectId, ProjectRole role) {
         Project project = getProjectEntityById(projectId);
-        ProjectMembership membership = projectMembershipRepository.findByUserAndProject(user, project).orElseThrow(
-                () -> new PermissionDeniedException("запрос от пользователя которого нет вообще в этом проекте")
-        );
-        if (!membership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN) &&
-                !membership.getProjectRole().equals(ProjectRole.PROJECT_PRODUCT_MANAGER)) {
-            throw new PermissionDeniedException("нет прав для данной операции");
-        }
+        ProjectMembership requesterMembership = requireUserMembership(requester, project);
+
+        requireProjectAdminOrProductManager(requesterMembership);
         User userToUpdate = userRepository.findById(userIdToUpdate).orElseThrow(
-                () -> new ResourceNotFoundException("обновляемый пользователь не найден в бд")
+                () -> new ResourceNotFoundException("User to update not found.")
         );
         ProjectMembership userToUpdateMembership = projectMembershipRepository.
                 findByUserAndProject(userToUpdate, project).orElseThrow(
-                        () -> new ResourceNotFoundException("связь обновляемого пользователя и проекта не найдена")
+                        () -> new ResourceNotFoundException("User is not a member of the project.")
                 );
-        if (user.getId().equals(userIdToUpdate)) {
-            throw new PermissionDeniedException("нельзя менять собственную роль");
+        if (requester.getId().equals(userIdToUpdate)) {
+            throw new PermissionDeniedException("Cannot change your own role.");
         }
 
         if (project.getCreator().getId().equals(userIdToUpdate) &&
-                !project.getCreator().getId().equals(user.getId())) {
-            throw new PermissionDeniedException("Только Создатель проекта может менять свою роль.");
+                !project.getCreator().getId().equals(requester.getId())) {
+            throw new PermissionDeniedException("Only the project creator can change their own role.");
         }
 
-        int requesterLevel = membership.getProjectRole().getPrivilegeLevel();
+        int requesterLevel = requesterMembership.getProjectRole().getPrivilegeLevel();
         int userToUpdateLevel = userToUpdateMembership.getProjectRole().getPrivilegeLevel();
         if (requesterLevel <= userToUpdateLevel) {
-            throw new PermissionDeniedException("нельзя менять роль пользователя уровнем выше вашего");
+            throw new PermissionDeniedException("Cannot change the role of a user with equal or higher privilege level.");
         }
         if (requesterLevel < role.getPrivilegeLevel()) {
-            throw  new PermissionDeniedException("нельзя выдать роль выше вашей");
+            throw new PermissionDeniedException("Cannot grant a role with a higher privilege level than your own.");
         }
-
 
         userToUpdateMembership.setProjectRole(role);
         projectMembershipRepository.save(userToUpdateMembership);
@@ -170,14 +147,8 @@ public class ProjectService {
 
     public void updateProject(User requester, Long projectId, ProjectUpdateDto dto) {
         Project project = getProjectEntityById(projectId);
-        ProjectMembership requesterMembership = projectMembershipRepository.
-                findByUserAndProject(requester,project).orElseThrow(
-                        () ->  new ResourceNotFoundException("не найдена связь")
-                );
-        if (!requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN) &&
-        !requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_PRODUCT_MANAGER)) {
-            throw new PermissionDeniedException("отказано в доступе");
-        }
+        ProjectMembership requesterMembership = requireUserMembership(requester, project);
+        requireProjectAdminOrProductManager(requesterMembership);
         if (dto.getName() != null) project.setName(dto.getName());
         if (dto.getDescription() != null) project.setDescription(dto.getDescription());
 
@@ -186,21 +157,15 @@ public class ProjectService {
 
     public List<TaskResponseDto> getAllTasksInProject(User requester, Long projectId) {
         Project project = getProjectEntityById(projectId);
-        ProjectMembership requesterMembership = projectMembershipRepository.
-                findByUserAndProject(requester,project).orElseThrow(
-                        () ->  new ResourceNotFoundException("не найдена связь")
-                );
+        ProjectMembership requesterMembership = requireUserMembership(requester, project);
         List<Task> tasks = taskRepository.findAllByProject(project);
 
         return projectMapper.toTaskResponseDtoList(tasks);
     }
 
-    public List<UserResponseDto>  getAllUsersInProject(User requester, Long projectId) {
+    public List<UserResponseDto> getAllUsersInProject(User requester, Long projectId) {
         Project project = getProjectEntityById(projectId);
-        ProjectMembership requesterMembership = projectMembershipRepository.
-                findByUserAndProject(requester,project).orElseThrow(
-                        () ->  new ResourceNotFoundException("не найдена связь")
-                );
+        ProjectMembership requesterMembership = requireUserMembership(requester, project);
 
         List<ProjectMembership> memberships = projectMembershipRepository.findByProject(project);
 
@@ -211,6 +176,25 @@ public class ProjectService {
         return projectRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Project with id: " + id + " not found")
         );
+    }
+
+    private ProjectMembership requireUserMembership(User requester, Project project) {
+        return projectMembershipRepository.findByUserAndProject(requester, project).orElseThrow(
+                () -> new PermissionDeniedException("Access denied: Must be a participant in the project")
+        );
+    }
+
+    private void requireProjectAdmin(ProjectMembership requesterMembership) {
+        if (!requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN)) {
+            throw new PermissionDeniedException("Access denied: not enough rights.");
+        }
+    }
+
+    private void requireProjectAdminOrProductManager(ProjectMembership requesterMembership) {
+        if (!requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN) &&
+                !requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_PRODUCT_MANAGER)) {
+            throw new PermissionDeniedException("Access denied: not enough rights.");
+        }
     }
 
 
