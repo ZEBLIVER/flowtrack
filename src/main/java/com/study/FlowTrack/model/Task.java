@@ -31,6 +31,9 @@ public class Task {
 
     private String description;
 
+    @Column(name = "task_number", nullable = false)
+    private Long taskNumber;
+
     @OneToMany(mappedBy = "task",cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Comment> comments = new HashSet<>();
 
