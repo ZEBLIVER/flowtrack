@@ -29,7 +29,7 @@ public interface ProjectMapper {
     @Mapping(source = "projectRole", target = "projectRole") // Получаем projectRole напрямую
     UserResponseDto toResponseUserDto(ProjectMembership membership);
 
-    TaskResponseDto toTaskResponseDto(Task task);
-
     List<TaskResponseDto> toTaskResponseDtoList(List<Task> tasks);
+
+
 }
