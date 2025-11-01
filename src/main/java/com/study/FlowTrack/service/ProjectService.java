@@ -55,15 +55,15 @@ public class ProjectService {
         return projectMapper.toResponseDto(savedProject);
     }
 
-    public void deleteProject(User requester, Long id) {
-        Project project = getProjectEntityById(id);
+    public void deleteProject(User requester, String projectKey) {
+        Project project = getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = requireUserMembership(requester, project);
         requireProjectAdmin(requesterMembership);
-        projectRepository.deleteById(id);
+        projectRepository.deleteById(project.getId());
     }
 
-    public void addUserToProject(User requester, Long userIdToAdd, Long projectId, ProjectRole projectRole) {
-        Project project = getProjectEntityById(projectId);
+    public void addUserToProject(User requester, Long userIdToAdd, String projectKey, ProjectRole projectRole) {
+        Project project = getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = requireUserMembership(requester, project);
         requireProjectAdmin(requesterMembership);
         User userToAddOptional = userRepository.findById(userIdToAdd).orElseThrow(
@@ -80,8 +80,8 @@ public class ProjectService {
         projectMembershipRepository.save(newMembership);
     }
 
-    public void deleteUserFromProject(User requester, Long userIdToDelete, Long projectId) {
-        Project project = getProjectEntityById(projectId);
+    public void deleteUserFromProject(User requester, Long userIdToDelete, String projectKey) {
+        Project project = getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = requireUserMembership(requester, project);
         requireProjectAdmin(requesterMembership);
         User userToDelete = userRepository.findById(userIdToDelete).orElseThrow(
@@ -95,8 +95,8 @@ public class ProjectService {
 
     }
 
-    public ProjectResponseDto getProjectById(User requester, Long id) {
-        Project project = getProjectEntityById(id);
+    public ProjectResponseDto getProjectById(User requester, String projectKey) {
+        Project project = getProjectEntityByKey(projectKey);
         requireUserMembership(requester, project);
         return projectMapper.toResponseDto(project);
     }
@@ -111,8 +111,8 @@ public class ProjectService {
         return projectMapper.toResponseDtoList(projects);
     }
 
-    public void setUserRolesInProject(User requester, Long userIdToUpdate, Long projectId, ProjectRole role) {
-        Project project = getProjectEntityById(projectId);
+    public void setUserRolesInProject(User requester, Long userIdToUpdate, String projectKey, ProjectRole role) {
+        Project project = getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = requireUserMembership(requester, project);
 
         requireProjectAdminOrProductManager(requesterMembership);
@@ -145,8 +145,8 @@ public class ProjectService {
         projectMembershipRepository.save(userToUpdateMembership);
     }
 
-    public void updateProject(User requester, Long projectId, ProjectUpdateDto dto) {
-        Project project = getProjectEntityById(projectId);
+    public void updateProject(User requester, String projectKey, ProjectUpdateDto dto) {
+        Project project = getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = requireUserMembership(requester, project);
         requireProjectAdminOrProductManager(requesterMembership);
         if (dto.getName() != null) project.setName(dto.getName());
@@ -155,27 +155,26 @@ public class ProjectService {
         projectRepository.save(project);
     }
 
-    public List<TaskResponseDto> getAllTasksInProject(User requester, Long projectId) {
-        Project project = getProjectEntityById(projectId);
-        ProjectMembership requesterMembership = requireUserMembership(requester, project);
+    public List<TaskResponseDto> getAllTasksInProject(User requester, String projectKey) {
+        Project project = getProjectEntityByKey(projectKey);
+        requireUserMembership(requester, project);
         List<Task> tasks = taskRepository.findAllByProject(project);
 
         return projectMapper.toTaskResponseDtoList(tasks);
     }
 
-    public List<UserResponseDto> getAllUsersInProject(User requester, Long projectId) {
-        Project project = getProjectEntityById(projectId);
-        ProjectMembership requesterMembership = requireUserMembership(requester, project);
+    public List<UserResponseDto> getAllUsersInProject(User requester, String projectKey) {
+        Project project = getProjectEntityByKey(projectKey);
+        requireUserMembership(requester, project);
 
         List<ProjectMembership> memberships = projectMembershipRepository.findByProject(project);
 
         return memberships.stream().map(projectMapper::toResponseUserDto).collect(Collectors.toList());
     }
 
-    private Project getProjectEntityById(Long id) {
-        return projectRepository.findById(id).orElseThrow(
-                () -> new ResourceNotFoundException("Project with id: " + id + " not found")
-        );
+    private Project getProjectEntityByKey(String key) {
+        return projectRepository.findProjectByKey(key).orElseThrow(
+                () -> new ResourceNotFoundException("Project with key: " + key + " not found"));
     }
 
     private ProjectMembership requireUserMembership(User requester, Project project) {
@@ -196,6 +195,8 @@ public class ProjectService {
             throw new PermissionDeniedException("Access denied: not enough rights.");
         }
     }
+
+
 
 
 }
