@@ -1,7 +1,5 @@
 package com.study.FlowTrack.payload.task;
 
-import com.study.FlowTrack.model.StatusTaskEntity;
-import com.study.FlowTrack.model.User;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
