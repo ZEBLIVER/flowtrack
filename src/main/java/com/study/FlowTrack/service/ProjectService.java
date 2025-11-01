@@ -10,10 +10,13 @@ import com.study.FlowTrack.model.ProjectMembership;
 import com.study.FlowTrack.model.Task;
 import com.study.FlowTrack.model.User;
 import com.study.FlowTrack.payload.project.ProjectCreationDto;
+import com.study.FlowTrack.payload.project.ProjectMembershipRequestDto;
 import com.study.FlowTrack.payload.project.ProjectResponseDto;
 import com.study.FlowTrack.payload.project.ProjectUpdateDto;
 import com.study.FlowTrack.payload.task.TaskResponseDto;
+import com.study.FlowTrack.payload.user.UserDeletionRequestDto;
 import com.study.FlowTrack.payload.user.UserResponseDto;
+import com.study.FlowTrack.payload.user.UserRoleUpdateRequestDto;
 import com.study.FlowTrack.repository.ProjectMembershipRepository;
 import com.study.FlowTrack.repository.ProjectRepository;
 import com.study.FlowTrack.repository.TaskRepository;
@@ -62,11 +65,11 @@ public class ProjectService {
         projectRepository.deleteById(project.getId());
     }
 
-    public void addUserToProject(User requester, Long userIdToAdd, String projectKey, ProjectRole projectRole) {
+    public void addUserToProject(User requester, String projectKey, ProjectMembershipRequestDto dto) {
         Project project = getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = requireUserMembership(requester, project);
         requireProjectAdmin(requesterMembership);
-        User userToAddOptional = userRepository.findById(userIdToAdd).orElseThrow(
+        User userToAddOptional = userRepository.findById(dto.getUserIdToAdd()).orElseThrow(
                 () -> new ResourceNotFoundException("User not found")
         );
         if (projectMembershipRepository.existsByUserAndProject(userToAddOptional, project)) {
@@ -75,16 +78,16 @@ public class ProjectService {
         ProjectMembership newMembership = new ProjectMembership();
         newMembership.setUser(userToAddOptional);
         newMembership.setProject(project);
-        newMembership.setProjectRole(projectRole);
+        newMembership.setProjectRole(dto.getProjectRole());
 
         projectMembershipRepository.save(newMembership);
     }
 
-    public void deleteUserFromProject(User requester, Long userIdToDelete, String projectKey) {
+    public void deleteUserFromProject(User requester, String projectKey, UserDeletionRequestDto dto) {
         Project project = getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = requireUserMembership(requester, project);
         requireProjectAdmin(requesterMembership);
-        User userToDelete = userRepository.findById(userIdToDelete).orElseThrow(
+        User userToDelete = userRepository.findById(dto.getUserIdToDelete()).orElseThrow(
                 () -> new ResourceNotFoundException("User not found")
         );
         ProjectMembership projectMembershipToDelete = projectMembershipRepository.
@@ -95,7 +98,7 @@ public class ProjectService {
 
     }
 
-    public ProjectResponseDto getProjectById(User requester, String projectKey) {
+    public ProjectResponseDto getProjectByKey(User requester, String projectKey) {
         Project project = getProjectEntityByKey(projectKey);
         requireUserMembership(requester, project);
         return projectMapper.toResponseDto(project);
@@ -111,23 +114,23 @@ public class ProjectService {
         return projectMapper.toResponseDtoList(projects);
     }
 
-    public void setUserRolesInProject(User requester, Long userIdToUpdate, String projectKey, ProjectRole role) {
+    public void setUserRolesInProject(User requester, String projectKey, UserRoleUpdateRequestDto dto) {
         Project project = getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = requireUserMembership(requester, project);
 
         requireProjectAdminOrProductManager(requesterMembership);
-        User userToUpdate = userRepository.findById(userIdToUpdate).orElseThrow(
+        User userToUpdate = userRepository.findById(dto.getUserIdToUpdate()).orElseThrow(
                 () -> new ResourceNotFoundException("User to update not found.")
         );
         ProjectMembership userToUpdateMembership = projectMembershipRepository.
                 findByUserAndProject(userToUpdate, project).orElseThrow(
                         () -> new ResourceNotFoundException("User is not a member of the project.")
                 );
-        if (requester.getId().equals(userIdToUpdate)) {
+        if (requester.getId().equals(dto.getUserIdToUpdate())) {
             throw new PermissionDeniedException("Cannot change your own role.");
         }
 
-        if (project.getCreator().getId().equals(userIdToUpdate) &&
+        if (project.getCreator().getId().equals(dto.getUserIdToUpdate()) &&
                 !project.getCreator().getId().equals(requester.getId())) {
             throw new PermissionDeniedException("Only the project creator can change their own role.");
         }
@@ -137,11 +140,11 @@ public class ProjectService {
         if (requesterLevel <= userToUpdateLevel) {
             throw new PermissionDeniedException("Cannot change the role of a user with equal or higher privilege level.");
         }
-        if (requesterLevel < role.getPrivilegeLevel()) {
+        if (requesterLevel < dto.getRole().getPrivilegeLevel()) {
             throw new PermissionDeniedException("Cannot grant a role with a higher privilege level than your own.");
         }
 
-        userToUpdateMembership.setProjectRole(role);
+        userToUpdateMembership.setProjectRole(dto.getRole());
         projectMembershipRepository.save(userToUpdateMembership);
     }
 
