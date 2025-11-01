@@ -2,6 +2,7 @@ package com.study.FlowTrack.repository;
 
 import com.study.FlowTrack.model.Project;
 import com.study.FlowTrack.model.Task;
+import com.study.FlowTrack.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -16,4 +17,10 @@ public interface TaskRepository extends JpaRepository<Task,Long> {
     Optional<Task> findFirstByProjectOrderByTaskNumberDesc(Project project);
 
     Optional<Task> findByProjectAndTaskNumber(Project project, Long taskNumber);
+
+    List<Task> findAllByAssignedUser(User assignedUser);
+
+    List<Task> findAllByAssignedUserAndProject(User assignedUser, Project project);
+
+    List<Task> getAllByCreator(User user);
 }

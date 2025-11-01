@@ -14,7 +14,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -78,8 +79,7 @@ public class TaskService {
         if (dto.getDescription() != null) task.setDescription(dto.getDescription());
 
         if (dto.getAssignedUserId() != null) {
-            User user = userRepository.findById(dto.getAssignedUserId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Назначаемый пользователь не найден."));
+            User user = getUserById(dto.getAssignedUserId());
             requireUserMembership(user,project);
             task.setAssignedUser(user);
         }
@@ -100,26 +100,56 @@ public class TaskService {
         requireProjectAdminOrProductManager(membership);
         taskRepository.delete(task);
     }
-    public void assignUserToTask() {
 
+    public List<TaskResponseDto> getTasksByProject(User requester, Long projectId) {
+        Project project = getProjectEntityById(projectId);
+        requireUserMembership(requester,project);
+        List<Task> tasks = taskRepository.findAllByProject(project);
+        return taskMapper.toResponseListDto(tasks);
     }
-    public void removeUserFromTask() {
 
+    public List<TaskResponseDto>  getTasksByAssignee(User requester, Long assignerId) {
+        if (requester.getId() != assignerId) {
+            throw new PermissionDeniedException("Access denied: not enough rights.");
+        }
+        User assignerUser = getUserById(assignerId);
+        List<Task> assignedTasks = taskRepository.findAllByAssignedUser(assignerUser);
+
+        List<Task> accessibleTasks = assignedTasks.stream()
+                .filter(task -> {
+                    Project project = task.getProject();
+                    return projectMembershipRepository.findByUserAndProject(requester,project).isPresent();
+                })
+                .collect(Collectors.toList());
+
+        return taskMapper.toResponseListDto(accessibleTasks);
     }
-    public void updateTaskStatus() {
 
+    public List<TaskResponseDto> getTasksByAssigneeAndProject(User requester, Long assignerId, Long projectId) {
+        Project project = getProjectEntityById(projectId);
+        User assignedUser = getUserById(assignerId);
+        requireUserMembership(requester,project);
+
+        List<Task> assignedTasks = taskRepository.findAllByAssignedUserAndProject(assignedUser, project);
+
+        return taskMapper.toResponseListDto(assignedTasks);
     }
-    public void updateTaskPriority() {
 
-    }
-    public void getTasksByProject() {
+    public List<TaskResponseDto> getTasksByCreator(User requester, Long creatorId) {
+        if (requester.getId() != creatorId) {
+            throw new PermissionDeniedException("not enough rights");
+        }
+        User creator = getUserById(creatorId);
+        List<Task> createdTasks = taskRepository.getAllByCreator(creator);
 
-    }
-    public void getTasksByAssignee() {
+        List<Task> accessibleCreatedTasks = createdTasks.stream().filter(
+                task -> {
+                    Project project = task.getProject();
+                    return projectMembershipRepository.findByUserAndProject(requester,project).isPresent();
+                }
+        ).collect(Collectors.toList());
 
-    }
-    public void getTasksByCreator() {
-
+        return taskMapper.toResponseListDto(accessibleCreatedTasks);
     }
 
     private ProjectMembership requireUserMembership(User requester, Project project) {
@@ -141,6 +171,11 @@ public class TaskService {
         return taskRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Task with id: " + id + " not found")
         );
+    }
+
+    private User getUserById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Назначенный пользователь не найден."));
     }
     private void requireProjectNotViewer(ProjectMembership requesterMembership) {
         if (requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_VIEWER)){
