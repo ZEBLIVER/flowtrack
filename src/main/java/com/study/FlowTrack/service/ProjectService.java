@@ -5,6 +5,7 @@ import com.study.FlowTrack.exception.DuplicateResourceException;
 import com.study.FlowTrack.exception.PermissionDeniedException;
 import com.study.FlowTrack.exception.ResourceNotFoundException;
 import com.study.FlowTrack.mapper.ProjectMapper;
+import com.study.FlowTrack.mapper.TaskMapper;
 import com.study.FlowTrack.model.Project;
 import com.study.FlowTrack.model.ProjectMembership;
 import com.study.FlowTrack.model.Task;
@@ -21,8 +22,10 @@ import com.study.FlowTrack.repository.ProjectMembershipRepository;
 import com.study.FlowTrack.repository.ProjectRepository;
 import com.study.FlowTrack.repository.TaskRepository;
 import com.study.FlowTrack.repository.UserRepository;
+import com.study.FlowTrack.repository.specifications.TaskSpecifications;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -35,6 +38,7 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectMembershipRepository projectMembershipRepository;
     private final ProjectMapper projectMapper;
+    private final TaskMapper taskMapper;
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
 
@@ -175,6 +179,27 @@ public class ProjectService {
         return memberships.stream().map(projectMapper::toResponseUserDto).collect(Collectors.toList());
     }
 
+    public List<TaskResponseDto>  getFilteredTasksInProject(User requester, String projectKey,
+                                                            Long creatorId, Long assignerId) {
+        Project project = getProjectEntityByKey(projectKey);
+        requireUserMembership(requester,project);
+
+        User assignedUser = (assignerId != null) ? getUserById(assignerId) : null;
+        User creatorUser = (creatorId != null) ? getUserById(creatorId) : null;
+
+        Specification<Task> spec = TaskSpecifications.hasProject(project);
+        if (assignedUser != null) {
+            spec = spec.and(TaskSpecifications.hasAssignedUser(assignedUser));
+        }
+        if (creatorUser != null) {
+            spec = spec.and(TaskSpecifications.hasCreator(creatorUser));
+        }
+
+        List<Task> filteredTasks = taskRepository.findAll(spec);
+
+        return taskMapper.toResponseListDto(filteredTasks);
+    }
+
     private Project getProjectEntityByKey(String key) {
         return projectRepository.findProjectByKey(key).orElseThrow(
                 () -> new ResourceNotFoundException("Project with key: " + key + " not found"));
@@ -197,6 +222,11 @@ public class ProjectService {
                 !requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_PRODUCT_MANAGER)) {
             throw new PermissionDeniedException("Access denied: not enough rights.");
         }
+    }
+
+    private User getUserById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден."));
     }
 
 
