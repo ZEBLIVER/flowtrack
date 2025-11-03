@@ -9,6 +9,7 @@ import com.study.FlowTrack.util.TaskIdentifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -23,7 +24,7 @@ public class TaskController {
     @PostMapping()
     public ResponseEntity<TaskResponseDto> createTask(
             @AuthenticationPrincipal User creator,
-            @RequestBody TaskCreationDto dto) {
+            @RequestBody @Validated TaskCreationDto dto) {
         TaskResponseDto task = taskService.createTask(creator, dto);
 
         TaskIdentifier taskIdentifier = new TaskIdentifier(task.getProjectKey(), task.getTaskNumber());
@@ -51,7 +52,7 @@ public class TaskController {
     @PatchMapping("/{taskIdentifier}")
     public ResponseEntity<TaskResponseDto> updateTask(@AuthenticationPrincipal User requester,
                                                       @PathVariable TaskIdentifier taskIdentifier,
-                                                      @RequestBody TaskUpdateDto dto) {
+                                                      @RequestBody @Validated TaskUpdateDto dto) {
         TaskResponseDto taskResponseDto = taskService.updateTask(
                 requester, taskIdentifier.getProjectKey(), taskIdentifier.getTaskNumber(), dto);
         return ResponseEntity.ok(taskResponseDto);
