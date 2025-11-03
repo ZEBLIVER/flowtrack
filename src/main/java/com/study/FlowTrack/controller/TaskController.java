@@ -5,6 +5,7 @@ import com.study.FlowTrack.payload.task.TaskCreationDto;
 import com.study.FlowTrack.payload.task.TaskResponseDto;
 import com.study.FlowTrack.payload.task.TaskUpdateDto;
 import com.study.FlowTrack.service.TaskService;
+import com.study.FlowTrack.util.TaskIdentifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,43 +21,46 @@ public class TaskController {
     private final TaskService taskService;
 
     @PostMapping()
-    public ResponseEntity<TaskResponseDto> createTask(@AuthenticationPrincipal User creator,
-                                                      @RequestBody TaskCreationDto dto) {
-        TaskResponseDto tasks = taskService.createTask(creator, dto);
+    public ResponseEntity<TaskResponseDto> createTask(
+            @AuthenticationPrincipal User creator,
+            @RequestBody TaskCreationDto dto) {
+        TaskResponseDto task = taskService.createTask(creator, dto);
+
+        TaskIdentifier taskIdentifier = new TaskIdentifier(task.getProjectKey(), task.getTaskNumber());
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
-                .path("/{projectKey}/{taskNumber}")
-                .buildAndExpand(tasks.getProjectKey(), tasks.getTaskNumber())
+                .path("/{taskIdentifier}")
+                .buildAndExpand(taskIdentifier.getFullKey())
                 .toUri();
 
         return ResponseEntity
                 .created(location) // 201 Created
-                .body(tasks);
+                .body(task);
     }
 
-    @GetMapping("/{projectKey}/{taskNumber}")
-    public ResponseEntity<TaskResponseDto> getTaskByProjectKeyAndNumber(@AuthenticationPrincipal User requester,
-                                                                        @PathVariable String projectKey,
-                                                                        @PathVariable Long taskNumber) {
-        TaskResponseDto taskResponseDto = taskService.getTaskByProjectKeyAndNumber(requester, projectKey, taskNumber);
+    @GetMapping("/{taskIdentifier}")
+    public ResponseEntity<TaskResponseDto> getTaskByProjectKeyAndNumber(
+            @AuthenticationPrincipal User requester,
+            @PathVariable TaskIdentifier taskIdentifier) {
+        TaskResponseDto taskResponseDto = taskService.getTaskByProjectKeyAndNumber(
+                requester, taskIdentifier.getProjectKey(), taskIdentifier.getTaskNumber());
         return ResponseEntity.ok(taskResponseDto);
     }
 
-    @PatchMapping("/{projectKey}/{taskNumber}")
+    @PatchMapping("/{taskIdentifier}")
     public ResponseEntity<TaskResponseDto> updateTask(@AuthenticationPrincipal User requester,
-                                                      @PathVariable String projectKey,
-                                                      @PathVariable Long taskNumber,
+                                                      @PathVariable TaskIdentifier taskIdentifier,
                                                       @RequestBody TaskUpdateDto dto) {
-        TaskResponseDto taskResponseDto = taskService.updateTask(requester, projectKey, taskNumber, dto);
+        TaskResponseDto taskResponseDto = taskService.updateTask(
+                requester, taskIdentifier.getProjectKey(), taskIdentifier.getTaskNumber(), dto);
         return ResponseEntity.ok(taskResponseDto);
     }
 
-    @DeleteMapping("/{projectKey}/{taskNumber}")
+    @DeleteMapping("/{taskIdentifier}")
     public ResponseEntity<Void> deleteTask(@AuthenticationPrincipal User requester,
-                                           @PathVariable String projectKey,
-                                           @PathVariable Long taskNumber) {
-        taskService.deleteTask(requester, projectKey, taskNumber);
+                                           @PathVariable TaskIdentifier taskIdentifier) {
+        taskService.deleteTask(requester, taskIdentifier.getProjectKey(), taskIdentifier.getTaskNumber());
         return ResponseEntity.noContent().build();
     }
 }
