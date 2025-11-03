@@ -6,6 +6,7 @@ import com.study.FlowTrack.payload.auth.AuthResponseDto;
 import com.study.FlowTrack.payload.auth.LoginDto;
 import com.study.FlowTrack.payload.auth.RegistrationDto;
 import com.study.FlowTrack.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -30,7 +31,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> registerUser(@RequestBody RegistrationDto registrationDto) {
+    public ResponseEntity<String> registerUser(@RequestBody @Valid RegistrationDto registrationDto) {
         User userToRegister = new User();
         userToRegister.setUserName(registrationDto.getUsername());
         userToRegister.setPassword(registrationDto.getPassword());
@@ -40,7 +41,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDto> loginUser(@RequestBody LoginDto loginDto) {
+    public ResponseEntity<AuthResponseDto> loginUser(@RequestBody @Valid LoginDto loginDto) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginDto.getUsername(),
