@@ -14,6 +14,7 @@ import com.study.FlowTrack.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -27,8 +28,9 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @PostMapping()
-    public ResponseEntity<ProjectResponseDto> createProject(@RequestBody ProjectCreationDto creationDto,
-                                                            @AuthenticationPrincipal User creator) {
+    public ResponseEntity<ProjectResponseDto> createProject(
+            @RequestBody @Validated ProjectCreationDto creationDto,
+            @AuthenticationPrincipal User creator) {
         ProjectResponseDto dto = projectService.createProject(creationDto, creator);
 
         URI location = ServletUriComponentsBuilder
@@ -52,7 +54,7 @@ public class ProjectController {
     @PostMapping("/{projectKey}/members")
     public ResponseEntity<Void> addUserToProject(@AuthenticationPrincipal User requester,
                                                  @PathVariable String projectKey,
-                                                 @RequestBody ProjectMembershipRequestDto dto) {
+                                                 @RequestBody @Validated ProjectMembershipRequestDto dto) {
         projectService.addUserToProject(requester, projectKey, dto);
         return ResponseEntity.ok().build();
     }
@@ -60,7 +62,7 @@ public class ProjectController {
     @DeleteMapping("/{projectKey}/members")
     public ResponseEntity<Void> deleteUserFromProject(@AuthenticationPrincipal User requester,
                                                       @PathVariable String projectKey,
-                                                      @RequestBody UserDeletionRequestDto dto) {
+                                                      @RequestBody @Validated UserDeletionRequestDto dto) {
         projectService.deleteUserFromProject(requester, projectKey, dto);
         return ResponseEntity.noContent().build();
     }
@@ -81,7 +83,7 @@ public class ProjectController {
     @PutMapping("/{projectKey}/roles")
     public ResponseEntity<Void> setUserRolesInProject(@AuthenticationPrincipal User requester,
                                                       @PathVariable String projectKey,
-                                                      @RequestBody UserRoleUpdateRequestDto dto) {
+                                                      @RequestBody @Validated UserRoleUpdateRequestDto dto) {
         projectService.setUserRolesInProject(requester, projectKey, dto);
         return ResponseEntity.ok().build();
     }
@@ -89,7 +91,7 @@ public class ProjectController {
     @PutMapping("/{projectKey}")
     public ResponseEntity<Void> updateProject(@AuthenticationPrincipal User requester,
                                               @PathVariable String projectKey,
-                                              @RequestBody ProjectUpdateDto dto) {
+                                              @RequestBody @Validated ProjectUpdateDto dto) {
         projectService.updateProject(requester, projectKey, dto);
         return ResponseEntity.ok().build();
     }
@@ -115,7 +117,7 @@ public class ProjectController {
             @RequestParam(required = false) Long creatorId,
             @RequestParam(required = false) Long assignerId) {
         List<TaskResponseDto> tasks = projectService
-                .getFilteredTasksInProject(requester,projectKey,creatorId,assignerId);
+                .getFilteredTasksInProject(requester, projectKey, creatorId, assignerId);
         return ResponseEntity.ok(tasks);
     }
 }
