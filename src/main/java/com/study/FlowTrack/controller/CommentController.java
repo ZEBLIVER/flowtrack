@@ -9,6 +9,7 @@ import com.study.FlowTrack.util.TaskIdentifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -25,7 +26,7 @@ public class CommentController {
     public ResponseEntity<CommentResponseDto> createComment(
             @AuthenticationPrincipal User requester,
             @PathVariable TaskIdentifier taskIdentifier,
-            @RequestBody CommentCreationDto dto) {
+            @RequestBody @Validated CommentCreationDto dto) {
 
         CommentResponseDto creationDto = commentService.createComment(requester,
                 taskIdentifier.getProjectKey(), taskIdentifier.getTaskNumber(), dto);
@@ -54,7 +55,7 @@ public class CommentController {
             @AuthenticationPrincipal User requester,
             @PathVariable TaskIdentifier taskIdentifier,
             @PathVariable Long commentId,
-            @RequestBody CommentUpdateDto dto) {
+            @RequestBody @Validated CommentUpdateDto dto) {
 
         CommentResponseDto updatedComment = commentService.updateComment(
                 requester, taskIdentifier.getProjectKey(), taskIdentifier.getTaskNumber(), commentId, dto);
