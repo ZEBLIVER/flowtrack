@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class ProjectUpdateDto {
-    @NotBlank(message = "Project name is required and cannot be empty.")
     @Size(min = 3, max = 30, message = "Project name must be between 3 and 30 characters.")
     private String name;
 
