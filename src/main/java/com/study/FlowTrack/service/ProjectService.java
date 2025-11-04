@@ -41,6 +41,7 @@ public class ProjectService {
     private final TaskMapper taskMapper;
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
+    private final ProjectAccessService projectAccessService;
 
     public ProjectResponseDto createProject(ProjectCreationDto creationDto, User creator) {
         if (projectRepository.existsByKey(creationDto.getKey())) {
@@ -63,16 +64,16 @@ public class ProjectService {
     }
 
     public void deleteProject(User requester, String projectKey) {
-        Project project = getProjectEntityByKey(projectKey);
-        ProjectMembership requesterMembership = requireUserMembership(requester, project);
-        requireProjectAdmin(requesterMembership);
+        Project project = projectAccessService.getProjectEntityByKey(projectKey);
+        ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
+        projectAccessService.requireProjectAdmin(requesterMembership);
         projectRepository.deleteById(project.getId());
     }
 
     public void addUserToProject(User requester, String projectKey, ProjectMembershipRequestDto dto) {
-        Project project = getProjectEntityByKey(projectKey);
-        ProjectMembership requesterMembership = requireUserMembership(requester, project);
-        requireProjectAdmin(requesterMembership);
+        Project project = projectAccessService.getProjectEntityByKey(projectKey);
+        ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
+        projectAccessService.requireProjectAdmin(requesterMembership);
         User userToAddOptional = userRepository.findById(dto.getUserIdToAdd()).orElseThrow(
                 () -> new ResourceNotFoundException("User not found")
         );
@@ -88,9 +89,9 @@ public class ProjectService {
     }
 
     public void deleteUserFromProject(User requester, String projectKey, UserDeletionRequestDto dto) {
-        Project project = getProjectEntityByKey(projectKey);
-        ProjectMembership requesterMembership = requireUserMembership(requester, project);
-        requireProjectAdmin(requesterMembership);
+        Project project = projectAccessService.getProjectEntityByKey(projectKey);
+        ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
+        projectAccessService.requireProjectAdmin(requesterMembership);
         User userToDelete = userRepository.findById(dto.getUserIdToDelete()).orElseThrow(
                 () -> new ResourceNotFoundException("User not found")
         );
@@ -103,8 +104,8 @@ public class ProjectService {
     }
 
     public ProjectResponseDto getProjectByKey(User requester, String projectKey) {
-        Project project = getProjectEntityByKey(projectKey);
-        requireUserMembership(requester, project);
+        Project project = projectAccessService.getProjectEntityByKey(projectKey);
+        projectAccessService.requireUserMembership(requester, project);
         return projectMapper.toResponseDto(project);
     }
 
@@ -119,10 +120,10 @@ public class ProjectService {
     }
 
     public void setUserRolesInProject(User requester, String projectKey, UserRoleUpdateRequestDto dto) {
-        Project project = getProjectEntityByKey(projectKey);
-        ProjectMembership requesterMembership = requireUserMembership(requester, project);
+        Project project = projectAccessService.getProjectEntityByKey(projectKey);
+        ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
 
-        requireProjectAdminOrProductManager(requesterMembership);
+        projectAccessService.requireProjectAdminOrProductManager(requesterMembership);
         User userToUpdate = userRepository.findById(dto.getUserIdToUpdate()).orElseThrow(
                 () -> new ResourceNotFoundException("User to update not found.")
         );
@@ -153,9 +154,9 @@ public class ProjectService {
     }
 
     public void updateProject(User requester, String projectKey, ProjectUpdateDto dto) {
-        Project project = getProjectEntityByKey(projectKey);
-        ProjectMembership requesterMembership = requireUserMembership(requester, project);
-        requireProjectAdminOrProductManager(requesterMembership);
+        Project project = projectAccessService.getProjectEntityByKey(projectKey);
+        ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
+        projectAccessService.requireProjectAdminOrProductManager(requesterMembership);
         if (dto.getName() != null) project.setName(dto.getName());
         if (dto.getDescription() != null) project.setDescription(dto.getDescription());
 
@@ -163,16 +164,16 @@ public class ProjectService {
     }
 
     public List<TaskResponseDto> getAllTasksInProject(User requester, String projectKey) {
-        Project project = getProjectEntityByKey(projectKey);
-        requireUserMembership(requester, project);
+        Project project = projectAccessService.getProjectEntityByKey(projectKey);
+        projectAccessService.requireUserMembership(requester, project);
         List<Task> tasks = taskRepository.findAllByProject(project);
 
         return projectMapper.toTaskResponseDtoList(tasks);
     }
 
     public List<UserResponseDto> getAllUsersInProject(User requester, String projectKey) {
-        Project project = getProjectEntityByKey(projectKey);
-        requireUserMembership(requester, project);
+        Project project = projectAccessService.getProjectEntityByKey(projectKey);
+        projectAccessService.requireUserMembership(requester, project);
 
         List<ProjectMembership> memberships = projectMembershipRepository.findByProject(project);
 
@@ -181,11 +182,11 @@ public class ProjectService {
 
     public List<TaskResponseDto>  getFilteredTasksInProject(User requester, String projectKey,
                                                             Long creatorId, Long assignerId) {
-        Project project = getProjectEntityByKey(projectKey);
-        requireUserMembership(requester,project);
+        Project project = projectAccessService.getProjectEntityByKey(projectKey);
+        projectAccessService.requireUserMembership(requester,project);
 
-        User assignedUser = (assignerId != null) ? getUserById(assignerId) : null;
-        User creatorUser = (creatorId != null) ? getUserById(creatorId) : null;
+        User assignedUser = (assignerId != null) ? projectAccessService.getUserById(assignerId) : null;
+        User creatorUser = (creatorId != null) ? projectAccessService.getUserById(creatorId) : null;
 
         Specification<Task> spec = TaskSpecifications.hasProject(project);
         if (assignedUser != null) {
@@ -199,37 +200,5 @@ public class ProjectService {
 
         return taskMapper.toResponseListDto(filteredTasks);
     }
-
-    private Project getProjectEntityByKey(String key) {
-        return projectRepository.findProjectByKey(key).orElseThrow(
-                () -> new ResourceNotFoundException("Project with key: " + key + " not found"));
-    }
-
-    private ProjectMembership requireUserMembership(User requester, Project project) {
-        return projectMembershipRepository.findByUserAndProject(requester, project).orElseThrow(
-                () -> new PermissionDeniedException("Access denied: Must be a participant in the project")
-        );
-    }
-
-    private void requireProjectAdmin(ProjectMembership requesterMembership) {
-        if (!requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN)) {
-            throw new PermissionDeniedException("Access denied: not enough rights.");
-        }
-    }
-
-    private void requireProjectAdminOrProductManager(ProjectMembership requesterMembership) {
-        if (!requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN) &&
-                !requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_PRODUCT_MANAGER)) {
-            throw new PermissionDeniedException("Access denied: not enough rights.");
-        }
-    }
-
-    private User getUserById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден."));
-    }
-
-
-
 
 }

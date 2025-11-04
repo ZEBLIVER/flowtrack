@@ -1,8 +1,6 @@
 package com.study.FlowTrack.service;
 
-import com.study.FlowTrack.enums.ProjectRole;
 import com.study.FlowTrack.enums.StatusTask;
-import com.study.FlowTrack.exception.PermissionDeniedException;
 import com.study.FlowTrack.exception.ResourceNotFoundException;
 import com.study.FlowTrack.mapper.TaskMapper;
 import com.study.FlowTrack.model.*;
@@ -20,15 +18,13 @@ import org.springframework.stereotype.Service;
 @Transactional
 public class TaskService {
     private final TaskRepository taskRepository;
-    private final ProjectMembershipRepository projectMembershipRepository;
-    private final ProjectRepository projectRepository;
     private final TaskMapper taskMapper;
     private final StatusTaskEntityRepository statusTaskEntityRepository;
-    private final UserRepository userRepository;
+    private final ProjectAccessService projectAccessService;
 
     public TaskResponseDto createTask(User creator, TaskCreationDto dto) {
-        Project project = getProjectEntityById(dto.getProjectId());
-        requireUserMembership(creator, project);
+        Project project = projectAccessService.getProjectEntityById(dto.getProjectId());
+        projectAccessService.requireUserMembership(creator, project);
 
         StatusTaskEntity statusTask = statusTaskEntityRepository
                 .findByStatusTask(StatusTask.OPEN)
@@ -51,23 +47,23 @@ public class TaskService {
     }
 
     public TaskResponseDto getTaskByProjectKeyAndNumber(User requester, String projectKey, Long taskNumber) {
-        Task task = getTaskByProjectKeyAndNumber(projectKey, taskNumber);
-        requireUserMembership(requester, task.getProject());
+        Task task = projectAccessService.getTaskByProjectKeyAndNumber(projectKey, taskNumber);
+        projectAccessService.requireUserMembership(requester, task.getProject());
         return taskMapper.toResponseDto(task);
     }
 
     public TaskResponseDto updateTask(User requester, String projectKey, Long taskNumber, TaskUpdateDto dto) {
-        Task task = getTaskByProjectKeyAndNumber(projectKey, taskNumber);
+        Task task = projectAccessService.getTaskByProjectKeyAndNumber(projectKey, taskNumber);
         Project project = task.getProject();
-        ProjectMembership membership = requireUserMembership(requester, project);
-        requireProjectNotViewer(membership);
+        ProjectMembership membership = projectAccessService.requireUserMembership(requester, project);
+        projectAccessService.requireProjectNotViewer(membership);
 
         if (dto.getTitle() != null) task.setTitle(dto.getTitle());
         if (dto.getDescription() != null) task.setDescription(dto.getDescription());
 
         if (dto.getAssignedUserId() != null) {
-            User user = getUserById(dto.getAssignedUserId());
-            requireUserMembership(user, project);
+            User user = projectAccessService.getUserById(dto.getAssignedUserId());
+            projectAccessService.requireUserMembership(user, project);
             task.setAssignedUser(user);
         }
 
@@ -81,53 +77,11 @@ public class TaskService {
     }
 
     public void deleteTask(User requester, String projectKey, Long taskNumber) {
-        Task task = getTaskByProjectKeyAndNumber(projectKey, taskNumber);
+        Task task = projectAccessService.getTaskByProjectKeyAndNumber(projectKey, taskNumber);
         Project project = task.getProject();
-        ProjectMembership membership = requireUserMembership(requester, project);
-        requireProjectAdminOrProductManager(membership);
+        ProjectMembership membership = projectAccessService.requireUserMembership(requester, project);
+        projectAccessService.requireProjectAdminOrProductManager(membership);
         taskRepository.delete(task);
-    }
-
-    private ProjectMembership requireUserMembership(User requester, Project project) {
-        return projectMembershipRepository.findByUserAndProject(requester, project).orElseThrow(
-                () -> new PermissionDeniedException("Access denied: Must be a participant in the project")
-        );
-    }
-
-    private Project getProjectEntityById(Long id) {
-        return projectRepository.findById(id).orElseThrow(
-                () -> new ResourceNotFoundException("Project with id: " + id + " not found")
-        );
-    }
-
-    private Project getProjectEntityByKey(String key) {
-        return projectRepository.findProjectByKey(key).orElseThrow(
-                () -> new ResourceNotFoundException("Project with key: " + key + " not found")
-        );
-    }
-
-    private User getUserById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found."));
-    }
-
-    private void requireProjectNotViewer(ProjectMembership requesterMembership) {
-        if (requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_VIEWER)) {
-            throw new PermissionDeniedException("Access denied: not enough rights.");
-        }
-    }
-
-    private void requireProjectAdminOrProductManager(ProjectMembership requesterMembership) {
-        if (!requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN) &&
-                !requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_PRODUCT_MANAGER)) {
-            throw new PermissionDeniedException("Access denied: not enough rights.");
-        }
-    }
-
-    private Task getTaskByProjectKeyAndNumber(String projectKey, Long taskNumber) {
-        Project project = getProjectEntityByKey(projectKey);
-        return taskRepository.findByProjectAndTaskNumber(project, taskNumber)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found."));
     }
 
 }
