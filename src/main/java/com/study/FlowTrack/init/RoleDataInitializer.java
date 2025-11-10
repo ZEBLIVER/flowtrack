@@ -1,4 +1,4 @@
-package com.study.FlowTrack.config;
+package com.study.FlowTrack.init;
 
 import com.study.FlowTrack.enums.StatusTask;
 import com.study.FlowTrack.enums.SystemRole;
