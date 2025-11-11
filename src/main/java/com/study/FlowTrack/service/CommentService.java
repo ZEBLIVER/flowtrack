@@ -8,6 +8,8 @@ import com.study.FlowTrack.payload.comment.CommentResponseDto;
 import com.study.FlowTrack.payload.comment.CommentUpdateDto;
 import com.study.FlowTrack.repository.CommentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,6 +21,7 @@ public class CommentService {
     private final CommentMapper commentMapper;
     private final ProjectAccessService projectAccessService;
 
+    @CacheEvict(value = "comments", key = "#projectKey + '_' + #taskNumber")
     public CommentResponseDto createComment(User requester, String projectKey,
                                             Long taskNumber, CommentCreationDto dto) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
@@ -35,6 +38,7 @@ public class CommentService {
         return commentMapper.toResponseDto(savedComment);
     }
 
+    @Cacheable(value = "comments", key = "#projectKey + '_' + #taskNumber")
     public List<CommentResponseDto> getCommentsByTask(User requester, String projectKey, Long taskNumber) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
         ProjectMembership membership = projectAccessService.requireUserMembership(requester,project);
@@ -44,6 +48,7 @@ public class CommentService {
         return commentMapper.toResponseListDto(comments);
     }
 
+    @CacheEvict(value = "comments", key = "#projectKey + '_' + #taskNumber")
     public CommentResponseDto updateComment(User requester, String projectKey,
                                             Long taskNumber, Long commentId, CommentUpdateDto dto) {
         Task task = projectAccessService.getTaskByProjectKeyAndNumber(projectKey, taskNumber);
@@ -59,6 +64,7 @@ public class CommentService {
         return commentMapper.toResponseDto(savedComment);
     }
 
+    @CacheEvict(value = "comments", allEntries = true)
     public void deleteComment(User requester, Long commentId) {
         Comment comment = projectAccessService.getCommentById(commentId);
         Project project = comment.getTask().getProject();

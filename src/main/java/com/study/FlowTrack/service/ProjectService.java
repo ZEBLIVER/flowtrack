@@ -25,8 +25,12 @@ import com.study.FlowTrack.repository.UserRepository;
 import com.study.FlowTrack.repository.specifications.TaskSpecifications;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,6 +47,7 @@ public class ProjectService {
     private final TaskRepository taskRepository;
     private final ProjectAccessService projectAccessService;
 
+    @CacheEvict(value = "userProjects", key = "#creator.id + '_projects_list'")
     public ProjectResponseDto createProject(ProjectCreationDto creationDto, User creator) {
         if (projectRepository.existsByKey(creationDto.getKey())) {
             throw new DuplicateResourceException("Project with key '" + creationDto.getKey() + "' already exists.");
@@ -63,6 +68,11 @@ public class ProjectService {
         return projectMapper.toResponseDto(savedProject);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "projects", key = "#projectKey + '_project_details'"),
+            @CacheEvict(value = "projects", key = "#projectKey + '_users_list'"),
+            @CacheEvict(value = "tasks", key = "#projectKey")
+    })
     public void deleteProject(User requester, String projectKey) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
@@ -70,6 +80,10 @@ public class ProjectService {
         projectRepository.deleteById(project.getId());
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "userProjects", key = "#dto.userIdToAdd + '_projects_list'"),
+            @CacheEvict(value = "projects", key = "#projectKey + '_users_list'")
+    })
     public void addUserToProject(User requester, String projectKey, ProjectMembershipRequestDto dto) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
@@ -88,6 +102,10 @@ public class ProjectService {
         projectMembershipRepository.save(newMembership);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "userProjects", key = "#dto.userIdToDelete + '_projects_list'"),
+            @CacheEvict(value = "projects", key = "#projectKey + '_users_list'")
+    })
     public void deleteUserFromProject(User requester, String projectKey, UserDeletionRequestDto dto) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
@@ -103,12 +121,14 @@ public class ProjectService {
 
     }
 
+    @Cacheable(value = "projects", key = "#projectKey + '_project_details'")
     public ProjectResponseDto getProjectByKey(User requester, String projectKey) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
         projectAccessService.requireUserMembership(requester, project);
         return projectMapper.toResponseDto(project);
     }
 
+    @Cacheable(value = "userProjects", key = "#user.id + '_projects_list'")
     public List<ProjectResponseDto> getAllProjects(User user) {
         List<ProjectMembership> memberships = projectMembershipRepository.findByUser(user);
 
@@ -119,6 +139,7 @@ public class ProjectService {
         return projectMapper.toResponseDtoList(projects);
     }
 
+    @CacheEvict(value = "projects", key = "#projectKey + '_users_list'")
     public void setUserRolesInProject(User requester, String projectKey, UserRoleUpdateRequestDto dto) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
@@ -153,16 +174,19 @@ public class ProjectService {
         projectMembershipRepository.save(userToUpdateMembership);
     }
 
-    public void updateProject(User requester, String projectKey, ProjectUpdateDto dto) {
+    @CachePut(value = "projects", key = "#projectKey + '_project_details'")
+    public ProjectResponseDto updateProject(User requester, String projectKey, ProjectUpdateDto dto) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
         ProjectMembership requesterMembership = projectAccessService.requireUserMembership(requester, project);
         projectAccessService.requireProjectAdminOrProductManager(requesterMembership);
         if (dto.getName() != null) project.setName(dto.getName());
         if (dto.getDescription() != null) project.setDescription(dto.getDescription());
 
-        projectRepository.save(project);
+        Project savedProject = projectRepository.save(project);
+        return projectMapper.toResponseDto(savedProject);
     }
 
+    @Cacheable(value = "tasks", key = "#projectKey")
     public List<TaskResponseDto> getAllTasksInProject(User requester, String projectKey) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
         projectAccessService.requireUserMembership(requester, project);
@@ -171,6 +195,7 @@ public class ProjectService {
         return projectMapper.toTaskResponseDtoList(tasks);
     }
 
+    @Cacheable(value = "projects", key = "#projectKey + '_users_list'")
     public List<UserResponseDto> getAllUsersInProject(User requester, String projectKey) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
         projectAccessService.requireUserMembership(requester, project);
@@ -180,10 +205,10 @@ public class ProjectService {
         return memberships.stream().map(projectMapper::toResponseUserDto).collect(Collectors.toList());
     }
 
-    public List<TaskResponseDto>  getFilteredTasksInProject(User requester, String projectKey,
-                                                            Long creatorId, Long assignerId) {
+    public List<TaskResponseDto> getFilteredTasksInProject(User requester, String projectKey,
+                                                           Long creatorId, Long assignerId) {
         Project project = projectAccessService.getProjectEntityByKey(projectKey);
-        projectAccessService.requireUserMembership(requester,project);
+        projectAccessService.requireUserMembership(requester, project);
 
         User assignedUser = (assignerId != null) ? projectAccessService.getUserById(assignerId) : null;
         User creatorUser = (creatorId != null) ? projectAccessService.getUserById(creatorId) : null;

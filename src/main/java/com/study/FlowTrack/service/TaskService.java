@@ -10,6 +10,9 @@ import com.study.FlowTrack.payload.task.TaskUpdateDto;
 import com.study.FlowTrack.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 
@@ -22,6 +25,7 @@ public class TaskService {
     private final StatusTaskEntityRepository statusTaskEntityRepository;
     private final ProjectAccessService projectAccessService;
 
+    @CacheEvict(value = "tasks", key = "#project.key")
     public TaskResponseDto createTask(User creator, TaskCreationDto dto) {
         Project project = projectAccessService.getProjectEntityById(dto.getProjectId());
         projectAccessService.requireUserMembership(creator, project);
@@ -46,12 +50,17 @@ public class TaskService {
         return taskMapper.toResponseDto(savedTask);
     }
 
+    @Cacheable(value = "tasks", key = "#projectKey + '_' + #taskNumber")
     public TaskResponseDto getTaskByProjectKeyAndNumber(User requester, String projectKey, Long taskNumber) {
         Task task = projectAccessService.getTaskByProjectKeyAndNumber(projectKey, taskNumber);
         projectAccessService.requireUserMembership(requester, task.getProject());
         return taskMapper.toResponseDto(task);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "tasks", key = "#projectKey"),
+            @CacheEvict(value = "tasks", key = "#projectKey + '_' + #taskNumber")
+    })
     public TaskResponseDto updateTask(User requester, String projectKey, Long taskNumber, TaskUpdateDto dto) {
         Task task = projectAccessService.getTaskByProjectKeyAndNumber(projectKey, taskNumber);
         Project project = task.getProject();
@@ -76,6 +85,10 @@ public class TaskService {
         return taskMapper.toResponseDto(task);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "tasks", key = "#projectKey"),
+            @CacheEvict(value = "tasks", key = "#projectKey + '_' + #taskNumber")
+    })
     public void deleteTask(User requester, String projectKey, Long taskNumber) {
         Task task = projectAccessService.getTaskByProjectKeyAndNumber(projectKey, taskNumber);
         Project project = task.getProject();
