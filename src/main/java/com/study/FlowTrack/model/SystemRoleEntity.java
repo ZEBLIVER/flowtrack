@@ -24,7 +24,7 @@ public class SystemRoleEntity {
     @Enumerated(EnumType.STRING)
     private SystemRole systemRoleName;
 
-    @ManyToMany(mappedBy = "roles")
+    @ManyToMany(mappedBy = "systemRoles")
     private Set<User> users = new HashSet<>();
 
     public SystemRoleEntity(SystemRole roleName) {
