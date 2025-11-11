@@ -5,12 +5,10 @@ import com.study.FlowTrack.payload.task.TaskCreationDto;
 import com.study.FlowTrack.payload.task.TaskResponseDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Mapper
-@Component
+@Mapper(componentModel = "spring", uses = {UserMapper.class})
 public interface TaskMapper {
     Task toEntity(TaskCreationDto dto);
 
