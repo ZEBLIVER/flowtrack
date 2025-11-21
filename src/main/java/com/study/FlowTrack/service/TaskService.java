@@ -1,6 +1,7 @@
 package com.study.FlowTrack.service;
 
 import com.study.FlowTrack.enums.StatusTask;
+import com.study.FlowTrack.event.TaskStatusChangedEvent;
 import com.study.FlowTrack.exception.ResourceNotFoundException;
 import com.study.FlowTrack.mapper.TaskMapper;
 import com.study.FlowTrack.model.*;
@@ -8,6 +9,7 @@ import com.study.FlowTrack.payload.task.TaskCreationDto;
 import com.study.FlowTrack.payload.task.TaskResponseDto;
 import com.study.FlowTrack.payload.task.TaskUpdateDto;
 import com.study.FlowTrack.repository.*;
+import com.study.FlowTrack.service.kafka.KafkaProducerService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -24,6 +26,7 @@ public class TaskService {
     private final TaskMapper taskMapper;
     private final StatusTaskEntityRepository statusTaskEntityRepository;
     private final ProjectAccessService projectAccessService;
+    private final KafkaProducerService kafkaProducerService;
 
     @CacheEvict(value = "tasks", key = "#project.key")
     public TaskResponseDto createTask(User creator, TaskCreationDto dto) {
@@ -67,6 +70,12 @@ public class TaskService {
         ProjectMembership membership = projectAccessService.requireUserMembership(requester, project);
         projectAccessService.requireProjectNotViewer(membership);
 
+        StatusTaskEntity oldStatusEntity = task.getStatusTaskEntity();
+        String oldStatusName = oldStatusEntity.getStatusTask().name();
+
+        boolean statusChanged = false;
+        StatusTaskEntity newStatusEntity = null;
+
         if (dto.getTitle() != null) task.setTitle(dto.getTitle());
         if (dto.getDescription() != null) task.setDescription(dto.getDescription());
 
@@ -77,11 +86,28 @@ public class TaskService {
         }
 
         if (dto.getNewStatusId() != null) {
-            StatusTaskEntity statusTask = statusTaskEntityRepository.findById(dto.getNewStatusId())
+             newStatusEntity = statusTaskEntityRepository.findById(dto.getNewStatusId())
                     .orElseThrow(() -> new ResourceNotFoundException("Статус задачи не найден."));
-            task.setStatusTaskEntity(statusTask);
+             if (!oldStatusEntity.getId().equals(newStatusEntity.getId())) {
+                 task.setStatusTaskEntity(newStatusEntity);
+                 statusChanged = true;
+             }
+
         }
         taskRepository.save(task);
+        if (statusChanged) {
+            String newStatusName = newStatusEntity.getStatusTask().name();
+
+            TaskStatusChangedEvent event = TaskStatusChangedEvent.builder()
+                    .taskId(task.getId())
+                    .projectId(task.getProject().getId())
+                    .userId(requester.getId())
+                    .oldStatus(oldStatusName)
+                    .newStatus(newStatusName)
+                    .build();
+
+            kafkaProducerService.sendTaskStatusChangedEvent(event);
+        }
         return taskMapper.toResponseDto(task);
     }
 
