@@ -60,6 +60,12 @@ public class TaskService {
         return taskMapper.toResponseDto(task);
     }
 
+    public TaskResponseDto getTaskById(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Задача с ID " + taskId + " не найдена."));
+        return taskMapper.toResponseDto(task);
+    }
+
     @Caching(evict = {
             @CacheEvict(value = "tasks", key = "#projectKey"),
             @CacheEvict(value = "tasks", key = "#projectKey + '_' + #taskNumber")
