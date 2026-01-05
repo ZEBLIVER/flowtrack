@@ -39,6 +39,19 @@ services:
       # Опционально: сохранение данных Redis на хост-машине
       - redis_data:/data
 
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: flowtrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
 # Объявление томов
 volumes:
   redis_data:
+  postgres_data:
