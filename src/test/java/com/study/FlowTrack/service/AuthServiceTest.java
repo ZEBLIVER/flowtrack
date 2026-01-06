@@ -2,6 +2,7 @@ package com.study.FlowTrack.service;
 
 import com.study.FlowTrack.enums.SystemRole;
 import com.study.FlowTrack.exception.DuplicateResourceException;
+import com.study.FlowTrack.exception.InitialRoleNotFoundException;
 import com.study.FlowTrack.model.SystemRoleEntity;
 import com.study.FlowTrack.model.User;
 import com.study.FlowTrack.repository.SystemRoleRepository;
@@ -62,6 +63,22 @@ class AuthServiceTest {
 
         when(userRepository.existsByUserName("Mike")).thenReturn(true);
         assertThrows(DuplicateResourceException.class, () -> authService.registerUser(newUser));
+
+        verify(userRepository,never()).save(any(User.class));
+    }
+
+    @Test
+        void registerUser_ThrowsException_WhenUserDoesNotHaveInitialRole() {
+        User newUser = new User();
+        newUser.setUserName("Mike");
+        newUser.setPassword("qwerty");
+
+        when(userRepository.existsByUserName("Mike")).thenReturn(false);
+        when(passwordEncoder.encode("qwerty")).thenReturn("encryptedPassword");
+        when(systemRoleRepository.findBySystemRoleName(SystemRole.ROLE_MANAGER))
+                .thenReturn(Optional.empty());
+
+        assertThrows(InitialRoleNotFoundException.class, () -> authService.registerUser(newUser));
 
         verify(userRepository,never()).save(any(User.class));
     }
