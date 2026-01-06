@@ -17,36 +17,16 @@ public class ProjectAccessService {
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
 
-//    public boolean isUserMember(String projectKey, String username) {
-//        User user = userRepository.findByUserName(username).orElse(null);
-//        if (user == null) return false;
-//
-//        Project project = projectRepository.findProjectByKey(projectKey).orElse(null);
-//        if (project == null) return false;
-//
-//        return projectMembershipRepository.existsByUserAndProject(user,project);
-//    }
-//
-//    public boolean isUserMember(Long projectId, String username) {
-//        User user = userRepository.findByUserName(username).orElse(null);
-//        if (user == null) return false;
-//
-//        Project project = projectRepository.findProjectById(projectId).orElse(null);
-//        if (project == null) return false;
-//
-//        return projectMembershipRepository.existsByUserAndProject(user,project);
-//    }
+    private static final String NOT_ENOUGH_RIGHTS = "Access denied: not enough rights.";
 
     public Project getProjectEntityById(Long id) {
-        return projectRepository.findById(id).orElseThrow(
-                () -> new ResourceNotFoundException("Project with id: " + id + " not found")
-        );
+        return projectRepository.findById(id)
+                .orElseThrow(() -> resourceNotFound("Project", "id", id));
     }
 
     public Project getProjectEntityByKey(String key) {
-        return projectRepository.findProjectByKey(key).orElseThrow(
-                () -> new ResourceNotFoundException("Project with key: " + key + " not found")
-        );
+        return projectRepository.findProjectByKey(key)
+                .orElseThrow(() -> resourceNotFound("Project", "key", key));
     }
 
     public User getUserById(Long id) {
@@ -62,7 +42,7 @@ public class ProjectAccessService {
 
     public void requireProjectNotViewer(ProjectMembership requesterMembership) {
         if (requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_VIEWER)) {
-            throw new PermissionDeniedException("Access denied: not enough rights.");
+            throw new PermissionDeniedException(NOT_ENOUGH_RIGHTS);
         }
     }
 
@@ -75,21 +55,20 @@ public class ProjectAccessService {
     public void requireProjectAdminOrProductManager(ProjectMembership requesterMembership) {
         if (!requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN) &&
                 !requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_PRODUCT_MANAGER)) {
-            throw new PermissionDeniedException("Access denied: not enough rights.");
+            throw new PermissionDeniedException(NOT_ENOUGH_RIGHTS);
         }
     }
 
     public void requireProjectAdmin(ProjectMembership requesterMembership) {
         if (!requesterMembership.getProjectRole().equals(ProjectRole.PROJECT_ADMIN)) {
-            throw new PermissionDeniedException("Access denied: not enough rights.");
+            throw new PermissionDeniedException(NOT_ENOUGH_RIGHTS);
         }
     }
 
     public Comment getCommentById(Long id) {
-        return commentRepository.findById(id).orElseThrow(
-                () -> new ResourceNotFoundException("Comment with id: " + id + " not found"));
+        return commentRepository.findById(id)
+                .orElseThrow(() -> resourceNotFound("Comment", "id", id));
     }
-
 
     public void requireProjectAdminOrProductManagerOrCommentOwner(ProjectMembership requesterMembership,
                                                                    Comment comment) {
@@ -99,8 +78,12 @@ public class ProjectAccessService {
         boolean isOwner = requesterMembership.getUser().getId().equals(comment.getAuthor().getId());
 
         if (!isAdminOrPM && !isOwner) {
-            throw new PermissionDeniedException("Access denied: not enough rights.");
+            throw new PermissionDeniedException(NOT_ENOUGH_RIGHTS);
         }
+    }
+
+    private ResourceNotFoundException resourceNotFound(String resource, String field, Object value) {
+        return new ResourceNotFoundException(String.format("%s with %s: %s not found", resource, field, value));
     }
 
 
